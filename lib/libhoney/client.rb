@@ -120,8 +120,21 @@ module Libhoney
       @max_concurrent_batches = max_concurrent_batches
       @pending_work_capacity  = pending_work_capacity
       @responses              = SizedQueue.new(2 * @pending_work_capacity)
-      @lock                   = Mutex.new
       @proxy_config           = proxy_config
+
+      transmission_client_params = {
+        max_batch_size: @max_batch_size,
+        send_frequency: @send_frequency,
+        max_concurrent_batches: @max_concurrent_batches,
+        pending_work_capacity: @pending_work_capacity,
+        responses: @responses,
+        block_on_send: @block_on_send,
+        block_on_responses: @block_on_responses,
+        user_agent_addition: @user_agent_addition,
+        proxy_config: @proxy_config
+      }
+
+      @transmission ||= TransmissionClient.new(**transmission_client_params)
     end
 
     builder_attr_accessor :writekey, :dataset, :sample_rate, :api_host
@@ -216,22 +229,6 @@ module Libhoney
     # @param event [Event] the event to send to honeycomb
     # @api private
     def send_event(event)
-      @lock.synchronize do
-        transmission_client_params = {
-          max_batch_size: @max_batch_size,
-          send_frequency: @send_frequency,
-          max_concurrent_batches: @max_concurrent_batches,
-          pending_work_capacity: @pending_work_capacity,
-          responses: @responses,
-          block_on_send: @block_on_send,
-          block_on_responses: @block_on_responses,
-          user_agent_addition: @user_agent_addition,
-          proxy_config: @proxy_config
-        }
-
-        @transmission ||= TransmissionClient.new(transmission_client_params)
-      end
-
       @transmission.add(event)
     end
 
